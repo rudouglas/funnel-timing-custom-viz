@@ -10,10 +10,13 @@
         "uuid": "fd410770-4380-4dfc-8f3f-8e6cb26e151d"
     },
     "dependencies": {
+        "@datanerd/nr1-nrql-filters": "^4.2.0",
+        "d3": "^7.2.0",
         "prop-types": "^15.6.2",
         "react": "^16.6.3",
         "react-dom": "^16.6.3",
-        "recharts": "^2.1.6"
+        "recharts": "^2.1.6",
+        "xregexp": "^5.1.0"
     },
     "browserslist": [
         "last 2 versions",
