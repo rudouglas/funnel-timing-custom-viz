@@ -8,7 +8,7 @@ import {
   NrqlQuery,
   Spinner,
   BillboardChart,
-  Icon,
+  Card,
 } from "nr1";
 
 const optionalClauses = [
@@ -28,7 +28,7 @@ const optionalClauses = [
   "WITH",
 ];
 
-export default class FunnelTimingCharts extends React.Component {
+export default class ValueStreamFunnel extends React.Component {
   constructor(props) {
     super(props);
 
@@ -74,6 +74,20 @@ export default class FunnelTimingCharts extends React.Component {
       return { min };
     });
   }
+
+  calculateTimeUnit(value) {
+    const milliseconds = (value / 1000).toFixed(2);
+    let seconds = (value / 1000000).toFixed(2);
+    let minutes = (value / (1000000 * 60)).toFixed(1);
+    let hours = (value / (1000000 * 60 * 60)).toFixed(1);
+    let days = (value / (1000000 * 60 * 60 * 24)).toFixed(1);
+    if (value < 1000) return `${value} µs`;
+    else if (milliseconds < 1000) return `${milliseconds} ms`;
+    else if (seconds < 60) return seconds + " s";
+    else if (minutes < 60) return minutes + " min";
+    else if (hours < 24) return hours + " hrs";
+    else return days + " days";
+  }
   /**
    * Restructure the data for a non-time-series, facet-based NRQL query into a
    * form accepted by the Recharts library's RadarChart.
@@ -106,7 +120,7 @@ export default class FunnelTimingCharts extends React.Component {
     });
     console.log({ steps });
     const results = await Promise.all(
-      steps.map(async ({ where, fullWhere, split, asClause }, index) => {
+      steps.map(async ({ where, fullWhere, asClause }, index) => {
         if (steps[index + 1]) {
           const endWhere = steps[index + 1].where;
           const avgMaxQuery = `SELECT average((ended - started)) as 'average', max((ended - started)) as 'max' FROM (SELECT min(timestamp) as started, max(timestamp) as ended FROM ${from} ${fullWhere} WHERE ${where} or ${endWhere} FACET ${attribute} limit MAX) ${since} limit MAX`;
@@ -118,40 +132,19 @@ export default class FunnelTimingCharts extends React.Component {
           // console.log({ ...minResult, ...avgMaxResult, index, asClause });
           const data = [
             {
-              metadata: {
-                id: "min",
-                name: "Min",
-                color: "#f6f6f6",
-                viz: "main",
-                units_data: {
-                  y: "MS",
-                },
-              },
-              data: [{ y: minResult.min / 1000 }],
+              id: "min",
+              name: "Min",
+              value: this.calculateTimeUnit(minResult.min),
             },
             {
-              metadata: {
-                id: "avg",
-                name: "Average",
-                color: "#eaeaea",
-                viz: "main",
-                units_data: {
-                  y: "MS",
-                },
-              },
-              data: [{ y: avgMaxResult.average / 1000 }],
+              id: "avg",
+              name: "Average",
+              value: this.calculateTimeUnit(avgMaxResult.average),
             },
             {
-              metadata: {
-                id: "max",
-                name: "Max",
-                color: "#e6e6e6",
-                viz: "main",
-                units_data: {
-                  y: "MS",
-                },
-              },
-              data: [{ y: avgMaxResult.max / 1000 }],
+              id: "max",
+              name: "Max",
+              value: this.calculateTimeUnit(avgMaxResult.max),
             },
           ];
           return {
@@ -178,74 +171,88 @@ export default class FunnelTimingCharts extends React.Component {
   }
   render() {
     const { results } = this.state;
-    return results ? (
-      results.map((result, index) => (
-        <>
-          <Grid
-            style={{
-              border: "2px solid #e6e6e6",
-              margin: "5px",
-              borderRadius: "5px",
-            }}
-          >
-            <GridItem columnSpan={3}>
-              <Stack
-                directionType={Stack.DIRECTION_TYPE.VERTICAL}
-                gapType={Stack.GAP_TYPE.NONE}
-                horizontalType={Stack.HORIZONTAL_TYPE.CENTER}
-                verticalType={Stack.VERTICAL_TYPE.CENTER}
-                style={{ height: "100%" }}
-                fullWidth
-                
-              >
-                <StackItem>
-                  <HeadingText
-                    type={HeadingText.TYPE.HEADING_2}
-                    spacingType={[
-                      HeadingText.SPACING_TYPE.EXTRA_LARGE,
-                      HeadingText.SPACING_TYPE.SMALL,
-                    ]}
+    const { funnelResults, fill } = this.props;
+    return funnelResults && results ? (
+      funnelResults.map((result, index) => {
+        const calculatedData = results.find(
+          (res) => res.startStep === result.step
+        )?.data;
+        return (
+          <>
+            <Grid
+              style={{
+                border: `2px solid #e6e6e6`,
+                margin: "5px",
+                borderRadius: "5px",
+              }}
+              preview
+            >
+              <GridItem columnSpan={2}>
+                <Card
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100%",
+                    fontSize: "1.3rem",
+                  }}
+                >{`${result.percentage}%`}</Card>
+              </GridItem>
+              <GridItem columnSpan={7}>
+                <Card
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    height: "1.2rem",
+                    border: `2px dashed ${fill || "#D291BC"}`,
+                  }}
+                >
+                  <Card
+                    style={{
+                      backgroundColor: fill || "#D291BC",
+                      width: `${result.percentage}%`,
+                      display: "flex",
+                      justifyContent: "center",
+                    }}
+                  />
+                </Card>
+                {index !== funnelResults.length - 1 && (
+                  <Stack
+                    directionType={Stack.DIRECTION_TYPE.Horizontal}
+                    horizontalType={Stack.HORIZONTAL_TYPE.CENTER}
+                    style={{ fontSize: "0.7rem", margin: "5px" }}
+                    gapType={Stack.GAP_TYPE.EXTRA_LARGE}
+                    fullWidth
                   >
-                    {result.startStep}
-                  </HeadingText>
-                </StackItem>
-                <StackItem style={{ height: "100%", paddingTop: "2rem" }} grow>
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    height="50%"
-                    style={{minHeight: "44px"}}
-                    viewBox="0 0 64 64"
-                    enable-background="new 0 0 64 64"
-                  >
-                    <circle cx="32" cy="32" r="30" fill="#fff" />
-                    <path
-                      d="m53.213 10.786c-11.715-11.715-30.711-11.715-42.426 0-11.716 11.715-11.716 30.711 0 42.426 11.715 11.717 30.711 11.717 42.426 0 11.716-11.715 11.716-30.711 0-42.426m-16.392 43.213l-8.179-8.912h4.596v-22.203c0-3.045-2.41-5.521-5.373-5.521-1.434 0-2.785.574-3.8 1.617l-5.065-5.209c2.368-2.432 5.517-3.771 8.865-3.771 6.914 0 12.537 5.779 12.537 12.885v22.203h4.598l-8.179 8.911"
-                      fill="#546e7a"
-                    />
-                  </svg>
-                </StackItem>
-
-                {index === results.length - 1 && (
-                  <StackItem>
-                    <HeadingText
-                      type={HeadingText.TYPE.HEADING_2}
-                      spacingType={[
-                        HeadingText.SPACING_TYPE.EXTRA_LARGE,
-                        HeadingText.SPACING_TYPE.SMALL,
-                      ]}
-                    >
-                      {result.endStep}
-                    </HeadingText>
-                  </StackItem>
+                    {calculatedData &&
+                      calculatedData.map((data) => (
+                        <StackItem>
+                          <p>{data.id.toUpperCase()}</p>
+                          <p style={{ fontSize: "1rem" }}>
+                            <strong>{data.value}</strong>
+                          </p>
+                        </StackItem>
+                      ))}
+                  </Stack>
                 )}
-              </Stack>
-            </GridItem>
-            <GridItem columnSpan={9}>
-              <BillboardChart data={result.data} fullWidth />
-            </GridItem>
-          </Grid>
-        </>
-      ))
+              </GridItem>
+              <GridItem columnSpan={3}>
+                <Card
+                  style={{
+                    display: "flex",
+                    justifyContent: "center",
+                    alignItems: "center",
+                    height: "100%",
+                    fontSize: "1.1rem",
+                  }}
+                >
+                  {result.step}
+                </Card>
+              </GridItem>
+            </Grid>
+          </>
+        );
+      })
     ) : (
       <Spinner />
     );
