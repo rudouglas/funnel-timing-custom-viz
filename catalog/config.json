@@ -1,0 +1,19 @@
+{
+  "tagline": "Value Stream Funnel",
+  "details": "This is a value stream funnel chart, it shows the normal funnel metrics that return after performing a NRQL funnel query, but also calculates the Minimum, Average and maximum time taken between each step.",
+  "categoryTerms": [],
+  "keywords": ["visualizations"],
+  "repository": "https://github.com/rudouglas/value-stream-funnel",
+  "whatsNew": "Added visualization-specific preview images for Nerdpack details 'What's inside' tab",
+  "support": {
+    "email": {
+      "address": "rdouglas@newrelic.com"
+    },
+    "issues": {
+      "url": "https://github.com/rudouglas/value-stream-funnel/issues"
+    },
+    "community": {
+      "url": "https://github.com/rudouglas/value-stream-funnel/pulls"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
     "private": true,
-    "name": "funnel-timing-custom-viz",
-    "version": "0.1.2",
+    "name": "value-stream-funnel",
+    "version": "0.1.4",
     "scripts": {
         "start": "nr1 nerdpack:serve",
         "test": "exit 0"

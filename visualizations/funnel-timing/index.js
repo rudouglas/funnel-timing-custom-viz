@@ -8,9 +8,7 @@ import {
   NrqlQuery,
   Spinner,
   AutoSizer,
-  StackedBarChart,
 } from "nr1";
-import FunnelTimingCharts from "./components/FunnelTimingCharts";
 import ValueStreamFunnel from "./components/ValueStreamFunnel";
 export default class FunnelTimingVisualization extends React.Component {
   // Custom props you wish to be configurable in the UI must also be defined in
@@ -34,28 +32,17 @@ export default class FunnelTimingVisualization extends React.Component {
     ),
   };
 
-  /**
-   * Format the given axis tick's numeric value into a string for display.
-   */
-  formatTick = (value) => {
-    return value.toLocaleString();
-  };
-
   render() {
     const { nrqlQueries, fill } = this.props;
-
     const nrqlQueryPropsAvailable =
       nrqlQueries &&
       nrqlQueries[0] &&
       nrqlQueries[0].accountId &&
       nrqlQueries[0].query;
-    console.log({ nrqlQueryPropsAvailable });
     if (!nrqlQueryPropsAvailable) {
       return <EmptyState />;
     }
     const { query, accountId } = nrqlQueries[0];
-    // const parsedQuery = this.parseQuery(query, accountId);
-    // console.log({ parsedQuery });
     return (
       <AutoSizer>
         {({ width, height }) => (
@@ -76,7 +63,7 @@ export default class FunnelTimingVisualization extends React.Component {
                 (a, b) => b[1] - a[1]
               );
               const percentageData = resultData
-                .map(([step, value], index) => {
+                .map(([step, value]) => {
                   return {
                     step,
                     value,
@@ -96,8 +83,6 @@ export default class FunnelTimingVisualization extends React.Component {
                   accountId={accountId}
                   fill={fill}
                 />
-                // <FunnelTimingCharts query={query}
-                // accountId={accountId} />
               );
             }}
           </NrqlQuery>

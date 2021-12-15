@@ -2,13 +2,12 @@ import React from "react";
 import {
   Stack,
   StackItem,
-  HeadingText,
   Grid,
   GridItem,
   NrqlQuery,
   Spinner,
-  BillboardChart,
   Card,
+  CardHeader,
 } from "nr1";
 
 const optionalClauses = [
@@ -34,6 +33,7 @@ export default class ValueStreamFunnel extends React.Component {
 
     this.state = {
       results: null,
+      funnelAttributeAs: null,
     };
     this.parseQuery = this.parseQuery.bind(this);
   }
@@ -42,7 +42,6 @@ export default class ValueStreamFunnel extends React.Component {
       query,
       accountId,
     }).then((res) => {
-      //   console.log({ res });
       if (res.data.errors) {
         throw new Error(res.data.errors);
       }
@@ -53,16 +52,17 @@ export default class ValueStreamFunnel extends React.Component {
       const { data } = res;
       const average = data.find((row) => row.data[0].average).data[0].average;
       const max = data.find((row) => row.data[0].max).data[0].max;
-      //   console.log({ average, max });
+
       return { average, max };
     });
   }
+
   async queryMinData(query, accountId) {
     return await NrqlQuery.query({
       query,
       accountId,
     }).then((res) => {
-      //   console.log({ res });
+
       if (res.data.errors) {
         throw new Error(res.data.errors);
       }
@@ -88,11 +88,7 @@ export default class ValueStreamFunnel extends React.Component {
     else if (hours < 24) return hours + " hrs";
     else return days + " days";
   }
-  /**
-   * Restructure the data for a non-time-series, facet-based NRQL query into a
-   * form accepted by the Recharts library's RadarChart.
-   * (https://recharts.org/api/RadarChart).
-   */
+
   parseQuery = async (query, accountId) => {
     const calculateSince = (string) => {
       const upto = optionalClauses.join("|");
@@ -103,33 +99,28 @@ export default class ValueStreamFunnel extends React.Component {
     console.log({ query });
     const funnel = query.match(/\((?:[^)(]+|\((?:[^)(]+|\([^)(]*\))*\))*\)/g);
     const from = query.match(/(?<=from\s)(.*?)(?=\s)/i)[0];
-    const select = query.match(/(?<=select\s)(.*?)(?=\s)/i)[0];
     const since = calculateSince(query.match(/since.*/i)[0]);
-    console.log({ since });
-    // console.log({funnel})
     const splitted = funnel[0].slice(1, -1).split(",");
-    const attribute = splitted.shift().split(" ")[0];
-    console.log({ attribute });
+    const funnelFocus = splitted.shift();
+    const funnelAttribute = funnelFocus.split(" ")[0];
+    const funnelAttributeAsMatch = funnelFocus.match(/(?<=as\s\')(.*?)(?=\')/i);
+    const funnelAttributeAs = funnelAttributeAsMatch ? funnelAttributeAsMatch[0] : funnelAttribute;
 
     const steps = splitted.map((split, index) => {
       const where = split.match(/(?<=where)(.*?)(?=AND|OR|AS|$)/i)[0].trim();
       const fullWhere = split.match(/where(.*?)(?=AS|$)/i)[0].trim();
       const asClause = split.match(/(?<=as)(.*?)(?=$)/i)[0].trim();
-      // console.log({ where, fullWhere, split });
       return { where, fullWhere, split, index, asClause };
     });
-    console.log({ steps });
     const results = await Promise.all(
       steps.map(async ({ where, fullWhere, asClause }, index) => {
         if (steps[index + 1]) {
           const endWhere = steps[index + 1].where;
-          const avgMaxQuery = `SELECT average((ended - started)) as 'average', max((ended - started)) as 'max' FROM (SELECT min(timestamp) as started, max(timestamp) as ended FROM ${from} ${fullWhere} WHERE ${where} or ${endWhere} FACET ${attribute} limit MAX) ${since} limit MAX`;
-          console.log(`${index} query`);
+          const avgMaxQuery = `SELECT average((ended - started)) as 'average', max((ended - started)) as 'max' FROM (SELECT min(timestamp) as started, max(timestamp) as ended FROM ${from} ${fullWhere} WHERE ${where} or ${endWhere} FACET ${funnelAttribute} limit MAX) ${since} limit MAX`;
           const avgMaxResult = await this.queryAvgMax(avgMaxQuery, accountId);
-          // console.log({ avgMaxResult });
-          const minQuery = `SELECT min((ended - started)) as 'min' FROM (SELECT min(timestamp) as started, max(timestamp) as ended FROM ${from} ${fullWhere} WHERE ${where} or ${endWhere} FACET ${attribute} limit MAX) WHERE ended - started != 0 ${since} limit MAX`;
+          const minQuery = `SELECT min((ended - started)) as 'min' FROM (SELECT min(timestamp) as started, max(timestamp) as ended FROM ${from} ${fullWhere} WHERE ${where} or ${endWhere} FACET ${funnelAttribute} limit MAX) WHERE ended - started != 0 ${since} limit MAX`;
           const minResult = await this.queryMinData(minQuery, accountId);
-          // console.log({ ...minResult, ...avgMaxResult, index, asClause });
+
           const data = [
             {
               id: "min",
@@ -157,11 +148,10 @@ export default class ValueStreamFunnel extends React.Component {
         return;
       })
     ).then(function (data) {
-      console.log({ data });
       return data.filter(Boolean);
     });
-    console.log({ results });
-    this.setState({ results });
+    this.setState({ results, funnelAttributeAs });
+
     return results;
   };
 
@@ -169,9 +159,11 @@ export default class ValueStreamFunnel extends React.Component {
     const { query, accountId } = this.props;
     this.parseQuery(query, accountId);
   }
+
   render() {
-    const { results } = this.state;
+    const { results, funnelAttributeAs } = this.state;
     const { funnelResults, fill } = this.props;
+
     return funnelResults && results ? (
       funnelResults.map((result, index) => {
         const calculatedData = results.find(
@@ -209,7 +201,7 @@ export default class ValueStreamFunnel extends React.Component {
                 >
                   <Card
                     style={{
-                      backgroundColor: fill || "#D291BC",
+                      backgroundColor: `${fill || "#D291BC"}`,
                       width: `${result.percentage}%`,
                       display: "flex",
                       justifyContent: "center",
@@ -241,12 +233,13 @@ export default class ValueStreamFunnel extends React.Component {
                   style={{
                     display: "flex",
                     justifyContent: "center",
-                    alignItems: "center",
+                    alignItems: "left",
                     height: "100%",
-                    fontSize: "1.1rem",
+                    fontSize: "1.1em",
                   }}
                 >
-                  {result.step}
+                  <CardHeader title={result.step} subtitle={`${result.value} ${funnelAttributeAs}s`} />
+                  
                 </Card>
               </GridItem>
             </Grid>
