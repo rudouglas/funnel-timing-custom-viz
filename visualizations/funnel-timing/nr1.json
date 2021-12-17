@@ -1,8 +1,8 @@
 {
     "schemaType": "VISUALIZATION",
-    "id": "funnel-timing",
-    "displayName": "FunnelTiming",
-    "description": "",
+    "id": "value-stream-funnel",
+    "displayName": "Value Stream Funnel",
+    "description": "This allows you to not only see normal funnel data, but also the min/average/max time a user took between each step in the funnel",
     "configuration": [
         {
             "name": "nrqlQueries",

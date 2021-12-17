@@ -7,7 +7,7 @@ import {
   NrqlQuery,
   Spinner,
   Card,
-  CardHeader,
+  HeadingText,
 } from "nr1";
 
 const optionalClauses = [
@@ -34,6 +34,7 @@ export default class ValueStreamFunnel extends React.Component {
     this.state = {
       results: null,
       funnelAttributeAs: null,
+      since: null,
     };
     this.parseQuery = this.parseQuery.bind(this);
   }
@@ -62,7 +63,6 @@ export default class ValueStreamFunnel extends React.Component {
       query,
       accountId,
     }).then((res) => {
-
       if (res.data.errors) {
         throw new Error(res.data.errors);
       }
@@ -104,12 +104,14 @@ export default class ValueStreamFunnel extends React.Component {
     const funnelFocus = splitted.shift();
     const funnelAttribute = funnelFocus.split(" ")[0];
     const funnelAttributeAsMatch = funnelFocus.match(/(?<=as\s\')(.*?)(?=\')/i);
-    const funnelAttributeAs = funnelAttributeAsMatch ? funnelAttributeAsMatch[0] : funnelAttribute;
+    const funnelAttributeAs = funnelAttributeAsMatch
+      ? funnelAttributeAsMatch[0]
+      : funnelAttribute;
 
     const steps = splitted.map((split, index) => {
       const where = split.match(/(?<=where)(.*?)(?=AND|OR|AS|$)/i)[0].trim();
       const fullWhere = split.match(/where(.*?)(?=AS|$)/i)[0].trim();
-      const asClause = split.match(/(?<=as)(.*?)(?=$)/i)[0].trim();
+      const asClause = split.match(/(?<=as\s\')(.*?)(?=\')/i)[0].trim();
       return { where, fullWhere, split, index, asClause };
     });
     const results = await Promise.all(
@@ -150,7 +152,7 @@ export default class ValueStreamFunnel extends React.Component {
     ).then(function (data) {
       return data.filter(Boolean);
     });
-    this.setState({ results, funnelAttributeAs });
+    this.setState({ results, funnelAttributeAs, since });
 
     return results;
   };
@@ -161,11 +163,15 @@ export default class ValueStreamFunnel extends React.Component {
   }
 
   render() {
-    const { results, funnelAttributeAs } = this.state;
+    const { results, funnelAttributeAs, since } = this.state;
     const { funnelResults, fill } = this.props;
 
     return funnelResults && results ? (
-      funnelResults.map((result, index) => {
+      <>
+        <HeadingText type={HeadingText.TYPE.HEADING_6} style={{margin: '1.2vh'}}>
+          {since}
+        </HeadingText>
+        {funnelResults.map((result, index) => {
         const calculatedData = results.find(
           (res) => res.startStep === result.step
         )?.data;
@@ -173,30 +179,31 @@ export default class ValueStreamFunnel extends React.Component {
           <>
             <Grid
               style={{
-                border: `2px solid #e6e6e6`,
-                margin: "5px",
-                borderRadius: "5px",
+                borderBottom: `1px solid rgb(242 242 242)`,
+                width: "auto",
               }}
               preview
             >
-              <GridItem columnSpan={2}>
-                <Card
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "center",
-                    height: "100%",
-                    fontSize: "1.3rem",
-                  }}
-                >{`${result.percentage}%`}</Card>
+              <GridItem
+                columnSpan={2}
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <Card>
+                  <p style={{ fontSize: "3vw" }}>{`${result.percentage}%`}</p>
+                </Card>
               </GridItem>
               <GridItem columnSpan={7}>
                 <Card
                   style={{
                     display: "flex",
                     justifyContent: "center",
-                    height: "1.2rem",
-                    border: `2px dashed ${fill || "#D291BC"}`,
+                    height: "4.5vh",
+                    border: `0.2vh dashed ${fill || "#D291BC"}`,
+                    borderRadius: "0px",
                   }}
                 >
                   <Card
@@ -205,6 +212,7 @@ export default class ValueStreamFunnel extends React.Component {
                       width: `${result.percentage}%`,
                       display: "flex",
                       justifyContent: "center",
+                      borderRadius: "0px",
                     }}
                   />
                 </Card>
@@ -212,7 +220,7 @@ export default class ValueStreamFunnel extends React.Component {
                   <Stack
                     directionType={Stack.DIRECTION_TYPE.Horizontal}
                     horizontalType={Stack.HORIZONTAL_TYPE.CENTER}
-                    style={{ fontSize: "0.7rem", margin: "5px" }}
+                    style={{ fontSize: "1.5vw", margin: "5px" }}
                     gapType={Stack.GAP_TYPE.EXTRA_LARGE}
                     fullWidth
                   >
@@ -220,7 +228,7 @@ export default class ValueStreamFunnel extends React.Component {
                       calculatedData.map((data) => (
                         <StackItem>
                           <p>{data.id.toUpperCase()}</p>
-                          <p style={{ fontSize: "1rem" }}>
+                          <p style={{ fontSize: "2vw" }}>
                             <strong>{data.value}</strong>
                           </p>
                         </StackItem>
@@ -229,23 +237,20 @@ export default class ValueStreamFunnel extends React.Component {
                 )}
               </GridItem>
               <GridItem columnSpan={3}>
-                <Card
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    alignItems: "left",
-                    height: "100%",
-                    fontSize: "1.1em",
-                  }}
-                >
-                  <CardHeader title={result.step} subtitle={`${result.value} ${funnelAttributeAs}s`} />
-                  
+                <Card style={{ margin: "1vw" }}>
+                  <p style={{ fontSize: "2vw" }}>
+                    <strong>{result.step}</strong>
+                  </p>
+                  <p
+                    style={{ fontSize: "2.3vw" }}
+                  >{`${result.value} ${funnelAttributeAs}s`}</p>
                 </Card>
               </GridItem>
             </Grid>
           </>
         );
-      })
+      })}
+      </>
     ) : (
       <Spinner />
     );
